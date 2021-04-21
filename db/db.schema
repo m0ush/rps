@@ -1,0 +1,22 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE securities (
+    security_id INTEGER PRIMARY KEY,
+    added_on TEXT DEFAULT CURRENT_DATE,
+    ended_on TEXT
+);
+
+CREATE TABLE thresholds (
+    trigger_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    value REAL NOT NULL
+);
+
+CREATE TABLE alerts (
+    security_id INTEGER,
+    created_on TEXT DEFAULT CURRENT_DATE,
+    trigger_id INTEGER,
+    PRIMARY KEY (security_id, created_on, trigger_id),
+    FOREIGN KEY (security_id) REFERENCES securities (security_id),
+    FOREIGN KEY (trigger_id) REFERENCES thresholds (trigger_id)
+);
