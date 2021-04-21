@@ -17,7 +17,7 @@ CREATE TABLE alerts (
     created_on TEXT DEFAULT CURRENT_DATE,
     security_id INTEGER,
     trigger_id INTEGER,
-    UNIQUE (security_id, created_on, trigger_id),
+    UNIQUE (created_on, security_id, trigger_id),
     FOREIGN KEY (security_id) REFERENCES securities (security_id),
     FOREIGN KEY (trigger_id) REFERENCES thresholds (trigger_id)
 );
