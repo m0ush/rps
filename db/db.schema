@@ -13,7 +13,7 @@ CREATE TABLE thresholds (
 );
 
 CREATE TABLE alerts (
-    alert_id INTEGER PRIMARY KEY
+    alert_id INTEGER PRIMARY KEY,
     created_on TEXT DEFAULT CURRENT_DATE,
     security_id INTEGER,
     trigger_id INTEGER,
