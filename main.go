@@ -8,13 +8,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/m0ush/rps/rpsdb"
 	"github.com/m0ush/rps/trundl"
 )
 
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.Ldate | log.Lmicroseconds)
-	if err := run(); err != nil {
+	if err := run1(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
@@ -48,5 +49,22 @@ func run() error {
 		return err
 	}
 	fmt.Println(string(jsn))
+	return nil
+}
+
+func run1() error {
+	db, err := rpsdb.ToOpen("sqlite", "./rpsdb/rps.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	secs, err := db.AllSecurities()
+	if err != nil {
+		return err
+	}
+	for _, p := range secs {
+		fmt.Println(p)
+	}
 	return nil
 }
