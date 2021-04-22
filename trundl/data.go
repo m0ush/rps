@@ -4,53 +4,73 @@ import (
 	"sort"
 )
 
+// TODO: pull these variables from database
 const (
 	lim1d = -0.01
 	lim7d = -0.03
 )
 
-type Packet struct {
-	Payload []Record `json:"records"`
-	DFrame  map[int][]Entry
-	Alerts  []Alert
+type Records struct {
+	Rx []Record `json:"records"`
+	N  int      `json:"total"`
 }
 
-func (p *Packet) DataFrame() {
-	m := make(map[int][]Entry)
-	for _, r := range p.Payload {
-		m[r.ID] = append(m[r.ID], r.Entry)
+func DataFrame(rs Records) map[int][]Entry {
+	df := make(map[int][]Entry, rs.N)
+	for _, r := range rs.Rx {
+		df[r.ID] = append(df[r.ID], r.Entry)
 	}
-	for _, e := range m {
+	return df
+}
+
+// TODO: Make Parallel
+func Sorter(df map[int][]Entry) map[int][]Entry {
+	for _, e := range df {
 		sort.Slice(e, func(i, j int) bool { return e[i].Date < e[j].Date })
 	}
-	p.DFrame = m
+	return df
 }
 
-func (p *Packet) FindAlerts() {
-	for k, e := range p.DFrame {
-		close := e[4].Price
-		day := e[3].Price
-		wk := e[0].Price
-
-		// Daily Limit
-		if priceReturn(close, day) < lim1d {
-			a := NewAlert(k, "daily", lim1d, close, day)
-			p.Alerts = append(p.Alerts, a)
+// TODO: Make Parallel
+func Series(df map[int][]Entry) map[int][]float64 {
+	series := make(map[int][]float64, len(df))
+	for id, data := range df {
+		var fx []float64
+		for _, e := range data {
+			fx = append(fx, e.Price)
 		}
+		series[id] = fx
+	}
+	return series
+}
 
+// TODO: Make Process Paralell
+// TODO: Accept Functional Args for Based on Different Limits
+func FindAlerts(series map[int][]float64) []Alert {
+	var ax []Alert
+	for k, fx := range series {
+		// Daily Limit
+		if priceReturn(fx[4], fx[3]) < lim1d {
+			a := NewAlert(k, "daily", lim1d, fx[4], fx[3])
+			ax = append(ax, a)
+		}
 		// Weekly Limit
-		if priceReturn(close, wk) < lim7d {
-			a := NewAlert(k, "weekly", lim1d, close, wk)
-			p.Alerts = append(p.Alerts, a)
-
+		if priceReturn(fx[4], fx[0]) < lim7d {
+			a := NewAlert(k, "weekly", lim7d, fx[4], fx[0])
+			ax = append(ax, a)
 		}
 	}
+	return ax
 }
 
-// still likely need alert number (sourced from db),
-// security sedol, and name.. Possibly percentage.
+func Pipeline(rs Records) []Alert {
+	return FindAlerts(Series(Sorter(DataFrame(rs))))
+}
+
+// TODO: Include Secruity Attributes (e.g. Sedol, Name)
+// TODO: Include Limit Struct as an Embedded Field
 type Alert struct {
-	ID       int
+	SecID    int
 	Lookback string
 	Limit    float64
 	Close    float64
@@ -59,7 +79,7 @@ type Alert struct {
 
 func NewAlert(id int, lb string, lim, close, prev float64) Alert {
 	return Alert{
-		ID:       id,
+		SecID:    id,
 		Lookback: lb,
 		Limit:    lim,
 		Close:    close,
@@ -77,7 +97,7 @@ type Entry struct {
 	Price float64 `json:"price_local_amount,string"`
 }
 
+// TODO: Handle ZeroDivisorError
 func priceReturn(close, previous float64) float64 {
 	return close/previous - 1
-
 }

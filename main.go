@@ -15,7 +15,7 @@ import (
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.Ldate | log.Lmicroseconds)
-	if err := run1(); err != nil {
+	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
@@ -36,35 +36,38 @@ func run() error {
 		return err
 	}
 
-	var pkt trundl.Packet
-	if err := json.Unmarshal(bs, &pkt); err != nil {
+	var rs trundl.Records
+	if err := json.Unmarshal(bs, &rs); err != nil {
 		return err
 	}
 
-	pkt.DataFrame()
-	pkt.FindAlerts()
+	x := trundl.Pipeline(rs)
+	fmt.Println(x)
 
-	jsn, err := json.MarshalIndent(pkt.Alerts, "", "\t")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(jsn))
 	return nil
 }
 
 func run1() error {
-	db, err := rpsdb.ToOpen("sqlite", "./rpsdb/rps.db")
+	db, err := rpsdb.Open("sqlite", "./rpsdb/rps.db")
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	secs, err := db.AllSecurities()
+	// secs, err := db.AllSecurities()
+	// if err != nil {
+	// 	return err
+	// }
+	// for _, p := range secs {
+	// 	fmt.Println(p)
+	// }
+
+	lims, err := db.AllLimits()
 	if err != nil {
 		return err
 	}
-	for _, p := range secs {
-		fmt.Println(p)
+	for _, l := range lims {
+		fmt.Println(l)
 	}
 	return nil
 }
