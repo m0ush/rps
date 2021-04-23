@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/m0ush/rps/app"
 	"github.com/m0ush/rps/rpsdb"
 	"github.com/m0ush/rps/trundl"
 )
@@ -41,7 +42,9 @@ func run() error {
 		return err
 	}
 
-	x := trundl.Pipeline(rs)
+	ld := app.NewReturnLimit(-0.01, 1)
+	lw := app.NewReturnLimit(-0.03, 4)
+	x := app.Sieve(rs, ld, lw)
 	fmt.Println(x)
 
 	return nil

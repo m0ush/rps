@@ -6,10 +6,11 @@ CREATE TABLE securities (
     ended_on TEXT
 );
 
-CREATE TABLE thresholds (
+CREATE TABLE limits (
     trigger_id INTEGER PRIMARY KEY,
     value INTEGER NOT NULL,
-    name TEXT NOT NULL
+    name TEXT NOT NULL,
+    day_lag INTEGER
 );
 
 CREATE TABLE alerts (
