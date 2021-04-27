@@ -2,6 +2,8 @@ package rpsdb
 
 import (
 	"database/sql"
+	"log"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -16,18 +18,15 @@ type DAlert struct {
 // TODO: Create an Inferface for Limit
 // Limits can be defined any way but they
 // should always perform similar actions
-// TODO: Add Lookback/DayLag period to thresholds table
-// Yesterday = 2
-// LastWeek = 8
-type Limit struct {
-	LimID int
-	Val   float64
-	Name  string
+type DLimit struct {
+	LimID  int
+	Val    float64
+	Name   string
 	DayLag int
 }
 
-func(l Limit) Thresh() float64 {
-	return l.Val / 100
+func (dl DLimit) Thresh() float64 {
+	return dl.Val / 100
 }
 
 type DB struct {
@@ -70,12 +69,21 @@ func (db *DB) AllSecurities() ([]int, error) {
 }
 
 // TODO: Possibly Accept Alert Struct
-func (db *DB) InsertAlert(secID, trigger_id int) (int, error) {
-	return -1, nil
+func (db *DB) InsertAlert(secID, triggerID int) (int, error) {
+	stmt := `INSERT INTO alerts (created_on, security_id, trigger_id) VALUES (?, ?, ?) RETURNING alert_id`
+	dstr := time.Now().Format("2006-01-02")
+
+	var id int
+	if err := db.db.QueryRow(stmt, dstr, secID, triggerID).Scan(&id); err != nil {
+		return -1, err
+	}
+	log.Printf("alert %5d: %9d added with %2d trigger_id\n", id, secID, triggerID)
+
+	return id, nil
 }
 
-func (db *DB) AllLimits() ([]Limit, error) {
-	stmt := `SELECT * FROM thresholds`
+func (db *DB) AllDLimits() ([]DLimit, error) {
+	stmt := `SELECT * FROM limits`
 
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -83,16 +91,16 @@ func (db *DB) AllLimits() ([]Limit, error) {
 	}
 	defer rows.Close()
 
-	var lims []Limit
+	var dls []DLimit
 	for rows.Next() {
-		var l Limit
-		if err := rows.Scan(&l.LimID, &l.Val, &l.Name); err != nil {
+		var l DLimit
+		if err := rows.Scan(&l.LimID, &l.Val, &l.Name, &l.DayLag); err != nil {
 			return nil, err
 		}
-		lims = append(lims, l)
+		dls = append(dls, l)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return lims, nil
+	return dls, nil
 }
