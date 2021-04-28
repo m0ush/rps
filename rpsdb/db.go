@@ -14,25 +14,110 @@ type Security struct {
 	EndedOn    string
 }
 
-type DAlert struct {
-	AlertID    int
-	CreateDate string
-	SecurityID int
-	LimitID    int
-}
-
-// TODO: Create an Inferface for Limit
-// Limits can be defined any way but they
-// should always perform similar actions
-type DLimit struct {
+type Limit struct {
 	LimID  int
 	Val    float64
-	Name   string
 	DayLag int
 }
 
-func (dl DLimit) Thresh() float64 {
-	return dl.Val / 100
+type Alert struct {
+	SecurityID int
+	Limit
+}
+
+func (l Limit) Thresh() float64 {
+	return l.Val / 100
+}
+
+func (l Limit) Pctg(fs []float64) float64 {
+	return fs[0]/fs[l.DayLag] - 1
+}
+
+func (l Limit) IsOver(fs []float64) bool {
+	return l.Pctg(fs) < l.Thresh()
+}
+
+func ResetDB(db *sql.DB) error {
+	if _, err := db.Exec("DROP TABLE alerts"); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec("DROP TABLE limits"); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec("DROP TABLE securities"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateTableSecurities(db *sql.DB) error {
+	stmt, err := db.Prepare(`CREATE TABLE IF NOT EXISTS securities (
+		security_id INTEGER PRIMARY KEY,
+		added_on TEXT DEFAULT CURRENT_DATE,
+		ended_on TEXT
+	)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateTableLimits(db *sql.DB) error {
+	stmt, err := db.Prepare(`CREATE TABLE IF NOT EXISTS limits (
+		limit_id INTEGER PRIMARY KEY,
+		value INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		day_lag INTEGER
+	)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateTableAlerts(db *sql.DB) error {
+	stmt, err := db.Prepare(`CREATE TABLE IF NOT EXISTS alerts (
+		alert_id INTEGER PRIMARY KEY,
+		created_on TEXT DEFAULT CURRENT_DATE,
+		security_id INTEGER,
+		limit_id INTEGER,
+		UNIQUE (created_on, security_id, limit_id),
+		FOREIGN KEY (security_id) REFERENCES securities (security_id),
+		FOREIGN KEY (limit_id) REFERENCES thresholds (limit_id)
+	)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO: Use CreateTable[TableName] with PRAGMA foreign_keys = ON;
+// Create using Transactions
+func CreateTables(db *sql.DB) error {
+	return nil
+}
+
+// TODO: Complete Function
+func CreateDatabase(db *sql.DB) error {
+	return nil
 }
 
 type DB struct {
@@ -52,7 +137,7 @@ func (db *DB) Close() error {
 }
 
 func (db *DB) AllSecurities() ([]int, error) {
-	stmt := `SELECT security_id FROM securities WHERE ended_on IS nil`
+	stmt := `SELECT security_id FROM securities WHERE ended_on IS NULL`
 
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -74,22 +159,30 @@ func (db *DB) AllSecurities() ([]int, error) {
 	return ids, nil
 }
 
-// TODO: Possibly Accept Alert Struct
-func (db *DB) InsertAlert(secID, limitID int) (int, error) {
+func (db *DB) InsertAlert(a Alert) (int, error) {
 	stmt := `INSERT INTO alerts (created_on, security_id, limit_id) VALUES (?, ?, ?) RETURNING alert_id`
 	dstr := time.Now().Format("2006-01-02")
 
 	var id int
-	if err := db.db.QueryRow(stmt, dstr, secID, limitID).Scan(&id); err != nil {
+	if err := db.db.QueryRow(stmt, dstr, a.SecurityID, a.LimID).Scan(&id); err != nil {
 		return -1, err
 	}
-	log.Printf("alert %5d: %9d added with %2d limit_id\n", id, secID, limitID)
+	log.Printf("alert %5d: %9d added with %2d limit_id\n", id, a.SecurityID, a.LimID)
 
 	return id, nil
 }
 
-func (db *DB) AllDLimits() ([]DLimit, error) {
-	stmt := `SELECT * FROM limits`
+func (db *DB) InsertAlerts(as []Alert) error {
+	for _, a := range as {
+		if _, err := db.InsertAlert(a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *DB) AllLimits() ([]Limit, error) {
+	stmt := `SELECT limit_id, value, day_lag FROM limits`
 
 	rows, err := db.db.Query(stmt)
 	if err != nil {
@@ -97,18 +190,18 @@ func (db *DB) AllDLimits() ([]DLimit, error) {
 	}
 	defer rows.Close()
 
-	var dls []DLimit
+	var ls []Limit
 	for rows.Next() {
-		var l DLimit
-		if err := rows.Scan(&l.LimID, &l.Val, &l.Name, &l.DayLag); err != nil {
+		var l Limit
+		if err := rows.Scan(&l.LimID, &l.Val, &l.DayLag); err != nil {
 			return nil, err
 		}
-		dls = append(dls, l)
+		ls = append(ls, l)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return dls, nil
+	return ls, nil
 }
 
 func (db *DB) SeedSecurities() error {
@@ -424,7 +517,12 @@ func (db *DB) SeedSecurities() error {
 }
 
 func (db *DB) SeedLimits() error {
-	dls := []DLimit{
+	ls := []struct {
+		LimID  int
+		Val    int
+		Name   string
+		DayLag int
+	}{
 		{
 			LimID:  1,
 			Val:    -30,
@@ -445,7 +543,7 @@ func (db *DB) SeedLimits() error {
 	}
 	defer stmt.Close()
 
-	for _, l := range dls {
+	for _, l := range ls {
 		if _, err := stmt.Exec(l.LimID, l.Val, l.Name, l.DayLag); err != nil {
 			return err
 		}

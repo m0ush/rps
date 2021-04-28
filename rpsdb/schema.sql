@@ -2,20 +2,20 @@ BEGIN TRANSACTION;
 
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE securities (
+CREATE TABLE IF NOT EXISTS securities (
     security_id INTEGER PRIMARY KEY,
     added_on TEXT DEFAULT CURRENT_DATE,
     ended_on TEXT
 );
 
-CREATE TABLE limits (
+CREATE TABLE IF NOT EXISTS limits (
     limit_id INTEGER PRIMARY KEY,
     value INTEGER NOT NULL,
     name TEXT NOT NULL,
     day_lag INTEGER
 );
 
-CREATE TABLE alerts (
+CREATE TABLE IF NOT EXISTS alerts (
     alert_id INTEGER PRIMARY KEY,
     created_on TEXT DEFAULT CURRENT_DATE,
     security_id INTEGER,

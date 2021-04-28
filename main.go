@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/m0ush/rps/app"
+	"github.com/m0ush/rps/rpsdb"
 	"github.com/m0ush/rps/trundl"
 )
 
@@ -41,14 +42,20 @@ func run() error {
 		return err
 	}
 
-	lims, err := app.RegisterLimits()
+	db, err := rpsdb.Open("sqlite", "./rpsdb/rps.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	lims, err := db.AllLimits()
 	if err != nil {
 		return err
 	}
 
 	// TODO: print or return alerts to be picked up by notification process
 	as := app.Sieve(rs, lims...)
-	app.AddAlerts(as)
+	db.InsertAlerts(as)
 
 	return nil
 }
