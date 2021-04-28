@@ -1,6 +1,9 @@
 package app
 
 import (
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"log"
 
 	"github.com/m0ush/rps/rpsdb"
@@ -27,4 +30,31 @@ func Evaluator(series map[int][]float64, ls ...rpsdb.Limit) []rpsdb.Alert {
 		}
 	}
 	return ax
+}
+
+func Runner(r io.Reader) error {
+	bs, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+
+	var rx trundl.Records
+	if err := json.Unmarshal(bs, &rx); err != nil {
+		return err
+	}
+
+	db, err := rpsdb.Open("sqlite", "./rpsdb/rps.db")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	lims, err := db.AllLimits()
+	if err != nil {
+		return err
+	}
+	ax := Sieve(rx, lims...)
+	db.InsertAlerts(ax)
+
+	return nil
 }

@@ -1,16 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
 	"github.com/m0ush/rps/app"
-	"github.com/m0ush/rps/rpsdb"
-	"github.com/m0ush/rps/trundl"
 )
 
 func main() {
@@ -32,30 +28,9 @@ func run() error {
 	}
 	defer f.Close()
 
-	bs, err := ioutil.ReadAll(f)
-	if err != nil {
+	if err := app.Runner(f); err != nil {
 		return err
 	}
-
-	var rs trundl.Records
-	if err := json.Unmarshal(bs, &rs); err != nil {
-		return err
-	}
-
-	db, err := rpsdb.Open("sqlite", "./rpsdb/rps.db")
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	lims, err := db.AllLimits()
-	if err != nil {
-		return err
-	}
-
-	// TODO: print or return alerts to be picked up by notification process
-	as := app.Sieve(rs, lims...)
-	db.InsertAlerts(as)
 
 	return nil
 }
