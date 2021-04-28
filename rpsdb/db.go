@@ -8,6 +8,14 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// TODO: Write Seed functions for the database
+
+type Security struct {
+	SecurityID int
+	AddedOn    string
+	EndedOn    string
+}
+
 type DAlert struct {
 	AlertID    int
 	CreateDate string
