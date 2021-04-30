@@ -1,6 +1,6 @@
 BEGIN TRANSACTION;
 
-INSERT INTO securities(security_id, added_on, ended_on)
+INSERT INTO securities (security_id, added_on, ended_on)
 VALUES
     (4320, "2020-11-11", "2021-01-19"),
     (5781, "2020-11-11", NULL),
@@ -73,12 +73,12 @@ VALUES
     (55580129, "2020-11-11", "2021-01-19"),
     (55581035, "2020-11-12", "2021-02-03");
 
-INSERT INTO limits(limit_id, value, name, day_lag)
+INSERT INTO limits (limit_id, value, name, day_lag)
 VALUES
     (1, -30, 'yesterday', 1),
     (2, -50, 'last_week', 4);
 
-INSERT INTO alerts(security_id, created_on, limit_id)
+INSERT INTO alerts (security_id, created_on, limit_id)
 VALUES
     (138287, '2019-10-25', 1),
     (185566, '2020-03-10', 1),

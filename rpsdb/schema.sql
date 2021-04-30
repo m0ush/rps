@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     limit_id INTEGER,
     UNIQUE (created_on, security_id, limit_id),
     FOREIGN KEY (security_id) REFERENCES securities (security_id),
-    FOREIGN KEY (limit_id) REFERENCES thresholds (limit_id)
+    FOREIGN KEY (limit_id) REFERENCES limits (limit_id)
 );
 
 COMMIT;
